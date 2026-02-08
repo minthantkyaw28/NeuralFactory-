@@ -221,8 +221,8 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <Factory className="w-8 h-8 text-blue-500" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight">OrbitSim <span className="text-blue-500">Ultimate</span></h1>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Mass Production Facility</p>
+              <h1 className="text-xl font-bold tracking-tight">NeuralFactory</h1>
+              <p className="text-[10px] text-blue-400 uppercase tracking-widest font-bold">Mass Production Facility AI Orchestration</p>
             </div>
           </div>
         </div>

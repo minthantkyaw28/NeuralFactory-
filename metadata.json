@@ -1,0 +1,5 @@
+{
+  "name": "AutoSim 3D: Industrial PLC & Robotics",
+  "description": "A high-fidelity 3D industrial automation simulator. Program a 6-axis robot arm using a simplified PLC language, or let Gemini AI generate the automation logic for you.",
+  "requestFramePermissions": []
+}

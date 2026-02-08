@@ -690,6 +690,7 @@ const CameraRig: React.FC<{ factory: FactoryState, controlsRef: React.RefObject<
   const { camera } = useThree();
   const prevConveyorPos = useRef(0);
   const isFollowing = useRef(false);
+  const isResetting = useRef(false);
 
   useFrame((state, delta) => {
     const line = factory.lines[1];
@@ -703,37 +704,41 @@ const CameraRig: React.FC<{ factory: FactoryState, controlsRef: React.RefObject<
     const moveDelta = targetX - prevTargetX;
 
     if (controlsRef.current) {
-       // CASE 1: RESET (Conveyor is 0)
-       if (currentPos === 0) {
-           isFollowing.current = false;
-           // Gentle lerp back to wide shot if we aren't there
-           const wideTarget = new THREE.Vector3(0, 0, 0);
-           const widePos = new THREE.Vector3(0, 3500, 6000);
-           
-           controlsRef.current.target.lerp(wideTarget, delta * 2);
-           camera.position.lerp(widePos, delta * 2);
-       } 
-       // CASE 2: JUST STARTED (Transition to 30-degree view)
-       else if (currentPos > 0 && !isFollowing.current) {
+       
+       // 1. STATE TRANSITIONS
+       if (currentPos > 0 && prevConveyorPos.current === 0) {
+           // STARTING
            isFollowing.current = true;
+           isResetting.current = false;
            
-           // Set the initial "Cinema" angle (30 degrees)
-           // Target: Satellite + Y offset
-           // Camera: Target + Z offset + Y elevation
            const initialTarget = new THREE.Vector3(targetX, 200, 0);
-           const initialCamPos = new THREE.Vector3(targetX, 1200, 1732); // 30 deg elevation
+           const initialCamPos = new THREE.Vector3(targetX, 1200, 1732);
 
            controlsRef.current.target.copy(initialTarget);
            camera.position.copy(initialCamPos);
        }
-       // CASE 3: FOLLOWING (Apply Delta)
-       else if (isFollowing.current) {
-           // Move target to new satellite position
+       else if (currentPos === 0 && prevConveyorPos.current > 0) {
+           // STOPPING
+           isFollowing.current = false;
+           isResetting.current = true;
+       }
+       // 2. CONTINUOUS UPDATES
+       else if (isFollowing.current && currentPos > 0) {
+           // ONLY apply delta if we didn't just jump-start (which is handled by the first if)
+           // The 'else' above ensures we don't double-apply.
            controlsRef.current.target.x = targetX;
-           
-           // Move camera by the exact same amount the satellite moved.
-           // This preserves the user's manual zoom/orbit/rotation relative to the satellite.
            camera.position.x += moveDelta;
+       }
+       else if (isResetting.current) {
+           const wideTarget = new THREE.Vector3(0, 0, 0);
+           const widePos = new THREE.Vector3(0, 3500, 6000);
+           
+           if (camera.position.distanceTo(widePos) < 100) {
+               isResetting.current = false;
+           } else {
+               controlsRef.current.target.lerp(wideTarget, delta * 2);
+               camera.position.lerp(widePos, delta * 2);
+           }
        }
        
        controlsRef.current.update();
@@ -793,7 +798,7 @@ const FactoryScene: React.FC<FactorySceneProps> = ({ factory }) => {
           </group>
 
         </Suspense>
-        <OrbitControls ref={controlsRef} makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} target={[0, 0, 0]} maxDistance={10000} />
+        <OrbitControls ref={controlsRef} makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} maxDistance={10000} />
       </Canvas>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, ContactShadows, Text, Float } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, ContactShadows, Text, Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import RobotArm from './Robot';
 import { FactoryState, LineState } from '../../types';
@@ -53,10 +53,6 @@ const HazardBorder: React.FC<{ width: number; depth: number }> = ({ width, depth
 };
 
 const FactoryWalls: React.FC = () => {
-  // Walls aligned to the new 9000 x 5000 floor edges
-  // Left Wall Removed
-  // Back Wall height increased to 5000
-  
   return (
     <group>
       {/* Back Wall (Upper Side) - Moved to -2500 (Half of 5000 Z) */}
@@ -129,13 +125,211 @@ const OverheadCrane: React.FC = () => (
   </group>
 );
 
+const HumanoidRobot: React.FC<{
+  color: string;
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  behavior: 'IDLE' | 'PATROL';
+  patrolRange?: { start: number; end: number; zOffset: number };
+  variant: 'HEAVY' | 'SCOUT' | 'ENGINEER';
+}> = ({ color, position, rotation = [0, 0, 0], behavior, patrolRange, variant }) => {
+  const group = useRef<THREE.Group>(null);
+  const leftLeg = useRef<THREE.Mesh>(null);
+  const rightLeg = useRef<THREE.Mesh>(null);
+  const leftArm = useRef<THREE.Mesh>(null);
+  const rightArm = useRef<THREE.Mesh>(null);
+  const head = useRef<THREE.Group>(null);
+  
+  // Random offset to de-sync animations
+  const offset = useMemo(() => Math.random() * 100, []);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime + offset;
+    
+    if (behavior === 'PATROL' && patrolRange && group.current) {
+       const patrolSpeed = variant === 'SCOUT' ? 0.6 : 0.4;
+       const range = patrolRange.end - patrolRange.start;
+       // 0..1 progress
+       const progress = (Math.sin(t * patrolSpeed) + 1) / 2;
+       
+       const currentX = patrolRange.start + (progress * range);
+       group.current.position.x = currentX;
+       group.current.position.z = patrolRange.zOffset; 
+
+       const dir = Math.cos(t * patrolSpeed);
+       group.current.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+
+       // Walking Animation
+       const limbSpeed = variant === 'SCOUT' ? 12 : 8;
+       if(leftLeg.current) leftLeg.current.rotation.x = Math.sin(t * limbSpeed) * 0.6;
+       if(rightLeg.current) rightLeg.current.rotation.x = -Math.sin(t * limbSpeed) * 0.6;
+       if(leftArm.current) leftArm.current.rotation.x = -Math.sin(t * limbSpeed) * 0.6;
+       if(rightArm.current) rightArm.current.rotation.x = Math.sin(t * limbSpeed) * 0.6;
+
+    } else if (behavior === 'IDLE') {
+       if(leftArm.current) leftArm.current.rotation.z = Math.sin(t * 2) * 0.05 + 0.1;
+       if(rightArm.current) rightArm.current.rotation.z = -Math.sin(t * 2) * 0.05 - 0.1;
+       if(group.current) group.current.rotation.y = rotation[1] + Math.sin(t * 0.5) * 0.1;
+       
+       // Head scanning
+       if(head.current && variant === 'SCOUT') {
+           head.current.rotation.y = Math.sin(t * 1.5) * 0.5;
+       }
+    }
+  });
+
+  // Scale Logic: Robots are now ~50% (2/4) the size of the machines (approx 6-7 units high)
+  // Base geometry height is ~2.0 units. 
+  // Scale 3.5 = ~7 units high
+  // Scale 2.5 = ~5 units high
+  const baseScale = variant === 'HEAVY' ? 3.5 : variant === 'SCOUT' ? 2.5 : 3.0;
+
+  return (
+    <group ref={group} position={position} rotation={rotation} scale={baseScale}>
+       {/* --- Floating UI Label (Robot) - Original Larger Style --- */}
+       <Html position={[0, 2.5, 0]} center>
+          <div className="pointer-events-none select-none flex flex-col items-center">
+            <div className="bg-gray-900/85 backdrop-blur-sm border border-gray-600 px-2 py-1 rounded shadow-xl mb-1 transform transition-transform hover:scale-110">
+               <div className="text-[10px] font-bold text-white font-mono tracking-wider flex items-center gap-2">
+                 <span className="w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px_currentColor]" style={{ backgroundColor: color, color: color }} />
+                 {variant}
+               </div>
+            </div>
+            {/* Simple connector line to robot head */}
+            <div className="w-px h-3 bg-gradient-to-b from-gray-600 to-transparent"></div>
+          </div>
+       </Html>
+
+       {/* --- BODY --- */}
+       <mesh position={[0, 1.2, 0]} castShadow>
+         {variant === 'HEAVY' 
+            ? <boxGeometry args={[0.8, 0.9, 0.5]} /> // Bulky chest
+            : <boxGeometry args={[0.5, 0.8, 0.3]} /> // Standard/Slim chest
+         }
+         <meshStandardMaterial color={color} roughness={0.3} metalness={0.6} />
+       </mesh>
+
+       {/* --- HEAVY VARIANT EXTRAS --- */}
+       {variant === 'HEAVY' && (
+         <group>
+            {/* Shoulder Pads */}
+            <mesh position={[-0.5, 1.6, 0]}>
+                <boxGeometry args={[0.3, 0.3, 0.4]} />
+                <meshStandardMaterial color="#fcd34d" metalness={0.5} />
+            </mesh>
+            <mesh position={[0.5, 1.6, 0]}>
+                <boxGeometry args={[0.3, 0.3, 0.4]} />
+                <meshStandardMaterial color="#fcd34d" metalness={0.5} />
+            </mesh>
+            {/* Backpack Power Unit */}
+            <mesh position={[0, 1.3, -0.35]}>
+                <boxGeometry args={[0.5, 0.6, 0.3]} />
+                <meshStandardMaterial color="#334155" />
+            </mesh>
+         </group>
+       )}
+
+       {/* --- SCOUT VARIANT EXTRAS --- */}
+       {variant === 'SCOUT' && (
+         <group>
+            {/* Antenna */}
+            <mesh position={[0.15, 2.1, -0.1]}>
+                <cylinderGeometry args={[0.02, 0.02, 0.6]} />
+                <meshStandardMaterial color="#94a3b8" />
+            </mesh>
+            {/* Jetpack/Sensor pack */}
+            <mesh position={[0, 1.4, -0.2]}>
+                <boxGeometry args={[0.3, 0.4, 0.15]} />
+                <meshStandardMaterial color="#e2e8f0" />
+            </mesh>
+         </group>
+       )}
+
+       {/* --- HEAD --- */}
+       <group ref={head} position={[0, variant === 'HEAVY' ? 1.85 : 1.8, 0]}>
+          <mesh castShadow>
+            {variant === 'SCOUT' 
+                ? <boxGeometry args={[0.25, 0.25, 0.3]} /> // Slim head
+                : <boxGeometry args={[0.3, 0.3, 0.3]} />   // Normal/Heavy head
+            }
+            <meshStandardMaterial color="#0f172a" roughness={0.5} />
+          </mesh>
+          {/* Eyes/Visor */}
+          <mesh position={[0, 0, variant === 'SCOUT' ? 0.16 : 0.16]}>
+            <planeGeometry args={[0.2, variant === 'SCOUT' ? 0.05 : 0.1]} />
+            <meshStandardMaterial 
+                color={variant === 'SCOUT' ? "#10b981" : "#00f0ff"} 
+                emissive={variant === 'SCOUT' ? "#10b981" : "#00f0ff"} 
+                emissiveIntensity={1} 
+            />
+          </mesh>
+       </group>
+
+       {/* --- ARMS --- */}
+       <group position={[0, 0, 0]}>
+           {/* Offset arms for heavy variant */}
+           <mesh ref={leftArm} position={[-0.35 - (variant === 'HEAVY' ? 0.15 : 0), 1.4, 0]} castShadow>
+              <boxGeometry args={[variant === 'HEAVY' ? 0.2 : 0.15, 0.7, variant === 'HEAVY' ? 0.2 : 0.15]} />
+              <meshStandardMaterial color={color} />
+           </mesh>
+           <mesh ref={rightArm} position={[0.35 + (variant === 'HEAVY' ? 0.15 : 0), 1.4, 0]} castShadow>
+              <boxGeometry args={[variant === 'HEAVY' ? 0.2 : 0.15, 0.7, variant === 'HEAVY' ? 0.2 : 0.15]} />
+              <meshStandardMaterial color={color} />
+           </mesh>
+       </group>
+
+       {/* --- LEGS --- */}
+       <group position={[0, 0.8, 0]}>
+          <mesh ref={leftLeg} position={[-0.15, -0.4, 0]} castShadow>
+             <boxGeometry args={[0.18, 0.8, 0.18]} />
+             <meshStandardMaterial color="#334155" />
+          </mesh>
+          <mesh ref={rightLeg} position={[0.15, -0.4, 0]} castShadow>
+             <boxGeometry args={[0.18, 0.8, 0.18]} />
+             <meshStandardMaterial color="#334155" />
+          </mesh>
+       </group>
+    </group>
+  );
+};
+
 const FactoryUnit: React.FC<{ 
   name: string; 
   position: [number, number, number]; 
+  status?: string;
   children?: React.ReactNode 
-}> = ({ name, position, children }) => {
+}> = ({ name, position, status, children }) => {
   return (
     <group position={position}>
+      {/* --- Machine Status Dialog --- */}
+      {status && (
+         <Html position={[0, 18, 0]} center distanceFactor={100} zIndexRange={[100, 0]}>
+            <div className="flex flex-col items-center pointer-events-none">
+                <div className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-lg border backdrop-blur-md shadow-2xl transition-all duration-500
+                    ${status === 'WORKING' 
+                        ? 'bg-blue-950/80 border-blue-500/50 scale-110 shadow-blue-900/20' 
+                        : 'bg-gray-900/60 border-gray-700/50 opacity-60 scale-90'}
+                `}>
+                    {status === 'WORKING' && (
+                        <div className="absolute -inset-1 bg-blue-500/20 blur-lg rounded-full animate-pulse" />
+                    )}
+                    
+                    <div className={`w-1.5 h-1.5 rounded-full ${status === 'WORKING' ? 'bg-blue-400 animate-ping' : 'bg-gray-500'}`} />
+                    <span className={`text-[10px] font-black tracking-[0.2em] ${status === 'WORKING' ? 'text-blue-100' : 'text-gray-500'}`}>
+                        {status}
+                    </span>
+                </div>
+                {status === 'WORKING' && (
+                     <div className="mt-1 w-12 h-0.5 bg-gray-800 rounded overflow-hidden">
+                         <div className="h-full bg-blue-500 w-full animate-pulse" />
+                     </div>
+                )}
+                 <div className="w-px h-8 bg-gradient-to-b from-gray-500/20 to-transparent mt-1" />
+            </div>
+         </Html>
+       )}
+
       {/* Unit Floor Marking */}
       <HazardBorder width={18} depth={18} />
       
@@ -371,42 +565,76 @@ const ProductionLine: React.FC<{ lineState: LineState, position: [number, number
        <ConveyorBelt />
 
         {/* --- UNIT 1: FRAME FABRICATION --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - Frame`} position={[-120, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - Frame`} position={[-120, 0, 0]} status={lineState.stations[0]}>
             <StationDispenser active={lineState.stations[0] === 'WORKING'} />
         </FactoryUnit>
 
         {/* --- UNIT 2: STRUCTURAL ASSEMBLY --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - Structure`} position={[-80, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - Structure`} position={[-80, 0, 0]} status={lineState.stations[1]}>
             <StationGantry active={lineState.stations[1] === 'WORKING'} />
         </FactoryUnit>
 
         {/* --- UNIT 3: AVIONICS INTEGRATION --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - Avionics`} position={[-40, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - Avionics`} position={[-40, 0, 0]} status={lineState.stations[2]}>
             <StationPropulsion lineState={lineState} />
         </FactoryUnit>
 
         {/* --- UNIT 4: PAYLOAD INSTALLATION --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - Payload`} position={[0, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - Payload`} position={[0, 0, 0]} status={lineState.stations[3]}>
             <StationWelder active={lineState.stations[3] === 'WORKING'} />
         </FactoryUnit>
 
         {/* --- UNIT 5: THERMAL VACUUM --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - TVAC`} position={[40, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - TVAC`} position={[40, 0, 0]} status={lineState.stations[4]}>
             <StationChamber active={lineState.stations[4] === 'WORKING'} />
         </FactoryUnit>
 
         {/* --- UNIT 6: QUALITY INSPECTION --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - QA`} position={[80, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - QA`} position={[80, 0, 0]} status={lineState.stations[5]}>
             <StationScanner active={lineState.stations[5] === 'WORKING'} />
         </FactoryUnit>
 
         {/* --- UNIT 7: SHIPPING --- */}
-        <FactoryUnit name={`Line ${labelSuffix} - Shipping`} position={[120, 0, 0]}>
+        <FactoryUnit name={`Line ${labelSuffix} - Shipping`} position={[120, 0, 0]} status="READY">
             <ShippingDock />
         </FactoryUnit>
 
         {/* --- PRODUCT --- */}
         <SatelliteProduct stage={lineState.satelliteStage} position={[productX, 2, 6]} />
+        
+        {/* --- ROBOT STAFF --- */}
+        {/* Stationary 1: Heavy Duty Security - Positioned clear of Frame Fab (Moved further out to Z=20 for larger size) */}
+        <HumanoidRobot 
+          variant="HEAVY"
+          color="#f97316" // Orange
+          position={[-90, 0, 20]} 
+          rotation={[0, Math.PI, 0]} // Looking at line
+          behavior="IDLE" 
+        />
+        {/* Stationary 2: Engineer inspecting Chamber - Positioned clear of TVAC (Moved further out to Z=-20) */}
+        <HumanoidRobot 
+          variant="ENGINEER"
+          color="#0ea5e9" // Sky Blue
+          position={[50, 0, -20]} 
+          rotation={[0, 0, 0]} // Looking at line
+          behavior="IDLE" 
+        />
+        {/* Walker 1: Agile Scout - Patrolling Left Side (Z=22 clear path) */}
+        <HumanoidRobot 
+          variant="SCOUT"
+          color="#eab308" // Yellow
+          position={[0, 0, 22]} 
+          behavior="PATROL"
+          patrolRange={{ start: -100, end: 0, zOffset: 22 }}
+        />
+        {/* Walker 2: Engineer - Patrolling Right Side (Z=-22 clear path) */}
+        <HumanoidRobot 
+          variant="ENGINEER"
+          color="#84cc16" // Lime
+          position={[0, 0, -22]} 
+          behavior="PATROL"
+          patrolRange={{ start: 20, end: 100, zOffset: -22 }}
+        />
     </group>
   );
 };

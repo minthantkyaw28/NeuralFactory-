@@ -3,7 +3,7 @@ import { Play, Square, RefreshCw, Cpu, MessageSquare, Terminal, AlertCircle, Sat
 import FactoryScene from './components/World/FactoryScene';
 import CodeEditor from './components/UI/CodeEditor';
 import { generatePLCCode } from './services/geminiService';
-import { FactoryState, SimulationState, INITIAL_FACTORY, INITIAL_CODE, RobotJoints } from './types';
+import { FactoryState, SimulationState, INITIAL_FACTORY, INITIAL_CODE, RobotJoints, LineState } from './types';
 
 const App: React.FC = () => {
   // --- State ---
@@ -11,7 +11,7 @@ const App: React.FC = () => {
   const [code, setCode] = useState<string>(INITIAL_CODE);
   const [status, setStatus] = useState<SimulationState>(SimulationState.IDLE);
   const [currentLine, setCurrentLine] = useState<number>(-1);
-  const [logs, setLogs] = useState<string[]>(["OrbitSim Manufacturing Pipeline Initialized."]);
+  const [logs, setLogs] = useState<string[]>(["OrbitSim Mass Production Facility Initialized."]);
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   
@@ -61,17 +61,20 @@ const App: React.FC = () => {
       };
     }
 
-    // Pipeline: Move Conveyor
+    // Pipeline: Move Conveyor (Broadcast to all lines)
     if (cmd === 'ADVANCE_CONVEYOR') {
       const targetPos = parseInt(parts[1], 10) || 0;
       return {
         type: 'CMD',
         duration: 2000, // Takes time to move
-        action: () => setFactory(prev => ({ ...prev, conveyorPos: targetPos }))
+        action: () => setFactory(prev => ({
+          ...prev,
+          lines: prev.lines.map(line => ({ ...line, conveyorPos: targetPos }))
+        }))
       };
     }
 
-    // Pipeline: Activate Station (and upgrade satellite)
+    // Pipeline: Activate Station (Broadcast to all lines)
     if (cmd === 'ACTIVATE_STATION') {
       const id = parseInt(parts[1], 10);
       return {
@@ -79,34 +82,38 @@ const App: React.FC = () => {
         duration: 2000, // Station work time
         action: () => {
           setFactory(prev => {
-            const newStations = [...prev.stations];
-            if (id >= 1 && id <= 6) newStations[id-1] = 'WORKING';
-            
-            // Logic to upgrade satellite based on station
-            let newStage = prev.satelliteStage;
-            // Upgrade logic: must be at station to upgrade
-            // Simple logic for simulation:
-            if (id === 1 && prev.conveyorPos <= 10) newStage = 1;
-            if (id === 2 && prev.conveyorPos >= 10 && prev.conveyorPos <= 30) newStage = 2;
-            if (id === 3 && prev.conveyorPos >= 30 && prev.conveyorPos <= 50) newStage = 3;
-            if (id === 4 && prev.conveyorPos >= 50 && prev.conveyorPos <= 70) newStage = 4;
-            if (id === 5 && prev.conveyorPos >= 70 && prev.conveyorPos <= 90) newStage = 5;
+            const updatedLines = prev.lines.map(line => {
+                const newStations = [...line.stations];
+                if (id >= 1 && id <= 6) newStations[id-1] = 'WORKING';
+                
+                // Logic to upgrade satellite based on station
+                let newStage = line.satelliteStage;
+                if (id === 1 && line.conveyorPos <= 10) newStage = 1;
+                if (id === 2 && line.conveyorPos >= 10 && line.conveyorPos <= 30) newStage = 2;
+                if (id === 3 && line.conveyorPos >= 30 && line.conveyorPos <= 50) newStage = 3;
+                if (id === 4 && line.conveyorPos >= 50 && line.conveyorPos <= 70) newStage = 4;
+                if (id === 5 && line.conveyorPos >= 70 && line.conveyorPos <= 90) newStage = 5;
 
-            return { ...prev, stations: newStations, satelliteStage: newStage };
+                return { ...line, stations: newStations, satelliteStage: newStage };
+            });
+            return { ...prev, lines: updatedLines };
           });
 
           setTimeout(() => {
              setFactory(prev => {
-                 const newStations = [...prev.stations];
-                 if (id >= 1 && id <= 6) newStations[id-1] = 'IDLE';
-                 return { ...prev, stations: newStations };
+                 const updatedLines = prev.lines.map(line => {
+                    const newStations = [...line.stations];
+                    if (id >= 1 && id <= 6) newStations[id-1] = 'IDLE';
+                    return { ...line, stations: newStations };
+                 });
+                 return { ...prev, lines: updatedLines };
              })
           }, 1900);
         }
       };
     }
 
-    // Pipeline: Manual Robot 1 Move
+    // Pipeline: Manual Robot 1 Move (Broadcast to all lines)
     if (cmd === 'MOVE_ROBOT_1') {
       const updates: Partial<RobotJoints> = {};
       for (let i = 1; i < parts.length; i += 2) {
@@ -123,7 +130,13 @@ const App: React.FC = () => {
       return {
         type: 'CMD',
         duration: 1000,
-        action: () => setFactory(prev => ({ ...prev, robot1Joints: { ...prev.robot1Joints, ...updates } }))
+        action: () => setFactory(prev => ({
+          ...prev,
+          lines: prev.lines.map(line => ({
+             ...line,
+             robot1Joints: { ...line.robot1Joints, ...updates }
+          }))
+        }))
       };
     }
 
@@ -167,7 +180,7 @@ const App: React.FC = () => {
     codeLinesRef.current = code.split('\n');
     currentLineRef.current = -1;
     setStatus(SimulationState.RUNNING);
-    addLog("Starting Production Run...");
+    addLog("Starting Mass Production Run...");
     setTimeout(executeStep, 100);
   };
 
@@ -186,7 +199,7 @@ const App: React.FC = () => {
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;
     setIsAiLoading(true);
-    addLog("AI: Optimizing Pipeline...");
+    addLog("AI: Optimizing Mass Production Schedule...");
     const generated = await generatePLCCode(aiPrompt);
     setCode(generated);
     addLog("AI: Schedule Generated.");
@@ -209,7 +222,7 @@ const App: React.FC = () => {
             <Factory className="w-8 h-8 text-blue-500" />
             <div>
               <h1 className="text-xl font-bold tracking-tight">OrbitSim <span className="text-blue-500">Ultimate</span></h1>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Advanced Manufacturing Simulation</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Mass Production Facility</p>
             </div>
           </div>
         </div>
@@ -217,11 +230,11 @@ const App: React.FC = () => {
             <div className="hidden md:flex gap-4 text-xs font-mono text-gray-400">
                 <div className="flex flex-col items-center">
                     <span className="text-gray-600">THROUGHPUT</span>
-                    <span className="text-green-400">1 UNIT/HR</span>
+                    <span className="text-green-400">3 UNITS/HR</span>
                 </div>
                 <div className="flex flex-col items-center">
                     <span className="text-gray-600">YIELD</span>
-                    <span className="text-blue-400">99.8%</span>
+                    <span className="text-blue-400">99.9%</span>
                 </div>
             </div>
             <div className={`flex items-center gap-2 text-sm px-4 py-1.5 rounded-full border ${
@@ -242,7 +255,7 @@ const App: React.FC = () => {
             {/* AI Input */}
             <div className="p-4 border-b border-gray-800">
                <div className="flex items-center justify-between text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                 <div className="flex items-center gap-2"><Cpu className="w-3 h-3"/> Pipeline Controller</div>
+                 <div className="flex items-center gap-2"><Cpu className="w-3 h-3"/> Master Controller</div>
                  {process.env.API_KEY ? <span className="text-green-500">AI ACTIVE</span> : <span className="text-red-500">OFFLINE</span>}
                </div>
                <div className="relative">
@@ -250,7 +263,7 @@ const App: React.FC = () => {
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAiGenerate())}
-                      placeholder="Describe production sequence (e.g. 'Build a satellite with extra QA testing')" 
+                      placeholder="Command the entire facility (e.g. 'Build 3 weather satellites in parallel')" 
                       className="w-full h-24 bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-none placeholder-gray-600 transition-all"
                   />
                   <button 
@@ -266,7 +279,7 @@ const App: React.FC = () => {
             {/* Editor */}
             <div className="flex-1 flex flex-col min-h-0 bg-gray-950">
               <div className="px-4 py-2 bg-gray-900 border-b border-gray-800 flex justify-between items-center text-[10px] text-gray-500 uppercase font-mono">
-                <span>main_sequence.plc</span>
+                <span>master_plc.sh</span>
                 <span>L{code.split('\n').length}</span>
               </div>
               <div className="flex-1 relative">
@@ -304,7 +317,7 @@ const App: React.FC = () => {
                 onClick={() => setIsLogOpen(!isLogOpen)}
              >
                 <div className="flex items-center gap-2">
-                    <Terminal className="w-3 h-3" /> Production Log
+                    <Terminal className="w-3 h-3" /> Facility Log
                 </div>
                 {isLogOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
              </div>

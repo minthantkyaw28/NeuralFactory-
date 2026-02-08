@@ -1,3 +1,5 @@
+import React from 'react';
+
 export enum SimulationState {
   IDLE = 'IDLE',
   RUNNING = 'RUNNING',

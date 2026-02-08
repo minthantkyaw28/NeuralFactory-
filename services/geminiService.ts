@@ -39,13 +39,10 @@ ACTIVATE_STATION 3
 
 export const generatePLCCode = async (prompt: string): Promise<string> => {
   try {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key not found");
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,

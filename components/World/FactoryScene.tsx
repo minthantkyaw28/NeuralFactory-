@@ -688,51 +688,58 @@ const ProductionLine: React.FC<{ lineState: LineState, position: [number, number
 
 const CameraRig: React.FC<{ factory: FactoryState, controlsRef: React.RefObject<any> }> = ({ factory, controlsRef }) => {
   const { camera } = useThree();
-  
-  // Track the visual position of the satellite
-  const currentX = useRef(-120 * 27); 
+  const prevConveyorPos = useRef(0);
+  const isFollowing = useRef(false);
 
   useFrame((state, delta) => {
-    // We track Line 1 (Center Line, index 1)
-    const line = factory.lines[1]; 
+    const line = factory.lines[1];
+    const currentPos = line.conveyorPos;
     
-    // Map 0..100 -> -120..120 local -> * 27 world
-    const logicalLocalX = (line.conveyorPos * 2.0) - 120;
-    const logicalWorldX = logicalLocalX * 27;
-
-    // Smoothly interpolate currentX towards logicalWorldX to create a cinematic follow effect
-    // slightly slower than the object movement (3.0) to feel like a camera operator
-    currentX.current = THREE.MathUtils.lerp(currentX.current, logicalWorldX, delta * 2.5);
+    // Map 0..100 -> World X
+    const getWorldX = (pos: number) => ((pos * 2.0) - 120) * 27;
+    
+    const targetX = getWorldX(currentPos);
+    const prevTargetX = getWorldX(prevConveyorPos.current);
+    const moveDelta = targetX - prevTargetX;
 
     if (controlsRef.current) {
-        // If conveyor is at start (0), use a Wide Shot
-        if (line.conveyorPos === 0) {
-            const wideTarget = new THREE.Vector3(0, 0, 0);
-            const widePos = new THREE.Vector3(0, 3500, 6000);
-            
-            controlsRef.current.target.lerp(wideTarget, delta * 2);
-            camera.position.lerp(widePos, delta * 2);
-        } else {
-            // Follow Shot: Tracking the satellite
-            // Target: The Satellite (at currentX) + slight Y offset
-            const focusTarget = new THREE.Vector3(currentX.current, 200, 0);
-            
-            // 30 Degree Elevation Calculation:
-            // Desired Angle = 30 deg
-            // Vertical Offset (Y) from target = 1000
-            // Horizontal Distance (Z) = 1000 / tan(30) ≈ 1732
-            // Camera Y = TargetY (200) + 1000 = 1200
-            // Camera Z = TargetZ (0) + 1732 = 1732
-            // Rounded to 1732 for simplicity
-            
-            const focusPos = new THREE.Vector3(currentX.current, 1200, 1732);
+       // CASE 1: RESET (Conveyor is 0)
+       if (currentPos === 0) {
+           isFollowing.current = false;
+           // Gentle lerp back to wide shot if we aren't there
+           const wideTarget = new THREE.Vector3(0, 0, 0);
+           const widePos = new THREE.Vector3(0, 3500, 6000);
+           
+           controlsRef.current.target.lerp(wideTarget, delta * 2);
+           camera.position.lerp(widePos, delta * 2);
+       } 
+       // CASE 2: JUST STARTED (Transition to 30-degree view)
+       else if (currentPos > 0 && !isFollowing.current) {
+           isFollowing.current = true;
+           
+           // Set the initial "Cinema" angle (30 degrees)
+           // Target: Satellite + Y offset
+           // Camera: Target + Z offset + Y elevation
+           const initialTarget = new THREE.Vector3(targetX, 200, 0);
+           const initialCamPos = new THREE.Vector3(targetX, 1200, 1732); // 30 deg elevation
 
-            controlsRef.current.target.lerp(focusTarget, delta * 2);
-            camera.position.lerp(focusPos, delta * 2);
-        }
-        
-        controlsRef.current.update();
+           controlsRef.current.target.copy(initialTarget);
+           camera.position.copy(initialCamPos);
+       }
+       // CASE 3: FOLLOWING (Apply Delta)
+       else if (isFollowing.current) {
+           // Move target to new satellite position
+           controlsRef.current.target.x = targetX;
+           
+           // Move camera by the exact same amount the satellite moved.
+           // This preserves the user's manual zoom/orbit/rotation relative to the satellite.
+           camera.position.x += moveDelta;
+       }
+       
+       controlsRef.current.update();
     }
+
+    prevConveyorPos.current = currentPos;
   });
 
   return null;

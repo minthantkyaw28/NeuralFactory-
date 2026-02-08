@@ -39,17 +39,17 @@ const RobotArm: React.FC<RobotProps> = ({ joints }) => {
     }
   });
 
-  // Aerospace / Cleanroom Theme
-  const materialColor = "#ffffff"; // Clean White
-  const accentColor = "#2563eb";   // Aerospace Blue
-  const metalColor = "#94a3b8";    // Aluminum/Silver
+  // Bolder Industrial Theme
+  const materialColor = "#f1f5f9"; // Bright White / Slate 100
+  const accentColor = "#ea580c";   // High-Vis Orange
+  const metalColor = "#1e293b";    // Dark Gunmetal
 
   return (
     <group position={[0, 0, 0]}>
       {/* Base Pedestal (Fixed) */}
       <mesh position={[0, 0.25, 0]}>
         <cylinderGeometry args={[1, 1.2, 0.5, 32]} />
-        <meshStandardMaterial color={metalColor} roughness={0.3} metalness={0.8} />
+        <meshStandardMaterial color={metalColor} roughness={0.4} metalness={0.8} />
       </mesh>
 
       {/* J1: Base Rotation (Y-Axis) */}
@@ -57,56 +57,56 @@ const RobotArm: React.FC<RobotProps> = ({ joints }) => {
         {/* Turret */}
         <mesh position={[0, 0.5, 0]}>
           <cylinderGeometry args={[0.8, 0.8, 1, 32]} />
-          <meshStandardMaterial color={materialColor} roughness={0.5} />
+          <meshStandardMaterial color={materialColor} roughness={0.3} metalness={0.2} />
         </mesh>
         {/* Branding Stripe */}
         <mesh position={[0, 0.5, 0.81]} rotation={[0,0,0]}>
-          <planeGeometry args={[0.5, 0.2]} />
-          <meshStandardMaterial color={accentColor} />
+          <planeGeometry args={[0.5, 0.8]} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={0.2} />
         </mesh>
 
         {/* J2: Shoulder (Z-Axis) */}
         <group ref={shoulderRef} position={[0, 0.8, 0]}>
           {/* Shoulder Joint Visual */}
           <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.5, 0.5, 1.25, 32]} />
-            <meshStandardMaterial color={accentColor} roughness={0.4} />
+            <cylinderGeometry args={[0.6, 0.6, 1.3, 32]} />
+            <meshStandardMaterial color={metalColor} roughness={0.3} metalness={0.9} />
           </mesh>
 
           {/* Upper Arm */}
           <mesh position={[0, 1.5, 0]}>
-            <boxGeometry args={[0.6, 3, 0.6]} />
-            <meshStandardMaterial color={materialColor} />
+            <boxGeometry args={[0.7, 3, 0.7]} />
+            <meshStandardMaterial color={materialColor} roughness={0.2} />
           </mesh>
-          <mesh position={[0.31, 1.5, 0]}>
-             <planeGeometry args={[0.1, 2]} />
-             <meshStandardMaterial color="#e5e7eb" />
+          <mesh position={[0.36, 1.5, 0]}>
+             <planeGeometry args={[0.1, 2.5]} />
+             <meshStandardMaterial color={metalColor} />
           </mesh>
 
           {/* J3: Elbow (Z-Axis) */}
           <group ref={elbowRef} position={[0, 2.8, 0]}>
              {/* Elbow Joint Visual */}
             <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.4, 0.4, 1.1, 32]} />
-              <meshStandardMaterial color={accentColor} roughness={0.4} />
+              <cylinderGeometry args={[0.5, 0.5, 1.2, 32]} />
+              <meshStandardMaterial color={accentColor} roughness={0.3} metalness={0.5} />
             </mesh>
 
             {/* Forearm */}
             <mesh position={[0.5, 1.0, 0]} rotation={[0, 0, -Math.PI / 4]}>
-              <boxGeometry args={[0.5, 2.5, 0.5]} />
-              <meshStandardMaterial color={materialColor} />
+              <boxGeometry args={[0.6, 2.5, 0.6]} />
+              <meshStandardMaterial color={materialColor} roughness={0.2} />
             </mesh>
 
             {/* J4: Wrist Pitch (Z-Axis relative to forearm) */}
             <group ref={wristPitchRef} position={[1.4, 1.9, 0]} rotation={[0, 0, -Math.PI/4]}>
                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <cylinderGeometry args={[0.3, 0.3, 0.8, 16]} />
-                  <meshStandardMaterial color={metalColor} />
+                  <cylinderGeometry args={[0.35, 0.35, 0.9, 16]} />
+                  <meshStandardMaterial color={metalColor} metalness={0.8} />
                </mesh>
 
                {/* Wrist Link */}
                <mesh position={[0, 0.4, 0]}>
-                 <boxGeometry args={[0.4, 0.8, 0.4]} />
+                 <boxGeometry args={[0.45, 0.8, 0.45]} />
                  <meshStandardMaterial color={materialColor} />
                </mesh>
 
@@ -114,34 +114,34 @@ const RobotArm: React.FC<RobotProps> = ({ joints }) => {
                <group ref={wristRollRef} position={[0, 0.8, 0]}>
                  {/* Flange */}
                  <mesh position={[0, 0.1, 0]}>
-                    <cylinderGeometry args={[0.35, 0.35, 0.2, 16]} />
-                    <meshStandardMaterial color="#64748b" metalness={0.6} />
+                    <cylinderGeometry args={[0.4, 0.4, 0.2, 16]} />
+                    <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
                  </mesh>
 
                  {/* Precision Gripper Mechanism */}
                  <group position={[0, 0.2, 0]}>
                     <mesh position={[0, 0.2, 0]}>
-                       <boxGeometry args={[0.6, 0.1, 0.2]} />
-                       <meshStandardMaterial color="#1f2937" />
+                       <boxGeometry args={[0.7, 0.15, 0.3]} />
+                       <meshStandardMaterial color="#0f172a" />
                     </mesh>
 
                     {/* Fingers (Rubber tipped for satellite parts) */}
                     <mesh position={[-0.25 + (joints.gripper/100)*0.05, 0.5, 0]}>
-                       <boxGeometry args={[0.05, 0.6, 0.15]} />
-                       <meshStandardMaterial color="#374151" />
+                       <boxGeometry args={[0.08, 0.6, 0.2]} />
+                       <meshStandardMaterial color="#334155" metalness={0.7} />
                     </mesh>
                     <mesh position={[-0.25 + (joints.gripper/100)*0.05, 0.75, 0]}>
-                       <boxGeometry args={[0.06, 0.1, 0.16]} />
-                       <meshStandardMaterial color="#blue" /> 
+                       <boxGeometry args={[0.09, 0.1, 0.21]} />
+                       <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={0.5} /> 
                     </mesh>
 
                     <mesh position={[0.25 - (joints.gripper/100)*0.05, 0.5, 0]}>
-                       <boxGeometry args={[0.05, 0.6, 0.15]} />
-                       <meshStandardMaterial color="#374151" />
+                       <boxGeometry args={[0.08, 0.6, 0.2]} />
+                       <meshStandardMaterial color="#334155" metalness={0.7} />
                     </mesh>
                     <mesh position={[0.25 - (joints.gripper/100)*0.05, 0.75, 0]}>
-                       <boxGeometry args={[0.06, 0.1, 0.16]} />
-                       <meshStandardMaterial color="#blue" /> 
+                       <boxGeometry args={[0.09, 0.1, 0.21]} />
+                       <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={0.5} /> 
                     </mesh>
                  </group>
                </group>

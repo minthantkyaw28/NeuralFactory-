@@ -108,25 +108,6 @@ const ConveyorBelt: React.FC = () => {
     );
 };
 
-const StorageRack: React.FC<{ position: [number, number, number] }> = ({ position }) => (
-  <group position={position}>
-    {/* Main Structure - Made Thinner (Thickness 0.4 instead of 2) */}
-    <mesh position={[0, 4, 0]}>
-      <boxGeometry args={[0.4, 8, 6]} />
-      <meshStandardMaterial color="#1e293b" metalness={0.6} />
-    </mesh>
-    {/* Shelves - Made Thinner (Thickness 0.6 instead of 2.2) */}
-    <mesh position={[0, 2, 0]}>
-       <boxGeometry args={[0.6, 0.4, 6.2]} />
-       <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={0.2} />
-    </mesh>
-    <mesh position={[0, 6, 0]}>
-       <boxGeometry args={[0.6, 0.4, 6.2]} />
-       <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={0.2} />
-    </mesh>
-  </group>
-);
-
 const OverheadCrane: React.FC = () => (
   <group position={[0, 12, 0]}>
     <mesh position={[0, 0, 0]}>
@@ -185,8 +166,6 @@ const FactoryUnit: React.FC<{
 
       {/* Decorations */}
       <OverheadCrane />
-      <StorageRack position={[-8, 0, -5]} />
-      <StorageRack position={[8, 0, -5]} />
 
       {/* Machines/Content */}
       <group position={[0, 0, 0]}>
@@ -385,9 +364,9 @@ const ProductionLine: React.FC<{ lineState: LineState, position: [number, number
 
   const productX = mapPosToX(lineState.conveyorPos);
 
-  // Scaled 25x (Increased from 20x)
+  // Scaled 27x (Increased from 25x)
   return (
-    <group position={position} scale={25}>
+    <group position={position} scale={27}>
        {/* --- MAIN CONVEYOR BELT --- */}
        <ConveyorBelt />
 

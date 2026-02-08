@@ -1,5 +1,5 @@
 import React, { Suspense, useRef, useEffect, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, ContactShadows, Text, Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import RobotArm from './Robot';
@@ -378,62 +378,109 @@ const SatelliteProduct: React.FC<{ stage: number; position: [number, number, num
         group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, position[0], delta * 3);
         group.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
         group.current.position.z = position[2];
+
+        // Add slow idle rotation to showcase specular highlights (shininess)
+        if (stage >= 2) {
+             group.current.rotation.y += delta * 0.2;
+             group.current.rotation.x = Math.sin(state.clock.elapsedTime) * 0.05;
+        } else {
+             // Reset rotation for stage 0/1 to keep it stable during build
+             group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, 0, delta * 2);
+             group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, 0, delta * 2);
+        }
     }
   });
 
   return (
     <group ref={group} position={[position[0], position[1], position[2]]}>
+      {/* Base Platform - Metallic and Techy */}
       <mesh position={[0, -0.6, 0]} castShadow>
         <boxGeometry args={[2.5, 0.2, 2.5]} />
-        <meshStandardMaterial color="#0f172a" />
+        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.2} />
       </mesh>
 
-      {/* STAGE 1: Core Frame - High Contrast Wireframe */}
+      {/* STAGE 1: Core Frame - High Contrast Wireframe Neon */}
       {stage >= 1 && (
         <mesh position={[0, 1, 0]} castShadow>
           <boxGeometry args={[2, 4, 2]} />
-          <meshStandardMaterial color="#cbd5e1" wireframe={stage === 1} emissive="#334155" emissiveIntensity={0.2} />
+          <meshStandardMaterial 
+            color="#38bdf8" 
+            wireframe={stage === 1} 
+            emissive="#0ea5e9" 
+            emissiveIntensity={stage === 1 ? 0.8 : 0.1} 
+            transparent={stage === 1}
+            opacity={0.8}
+          />
         </mesh>
       )}
 
-      {/* STAGE 2: Bus Structure - Metallic */}
+      {/* STAGE 2: Bus Structure - High Polished Chrome/Aluminum */}
       {stage >= 2 && (
         <mesh position={[0, 1, 0]} castShadow>
           <boxGeometry args={[2.1, 4.1, 2.1]} />
-          <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
+          <meshStandardMaterial 
+            color="#f8fafc" 
+            metalness={1.0} 
+            roughness={0.1} 
+            envMapIntensity={2.5}
+          />
         </mesh>
       )}
 
-      {/* STAGE 3: Propulsion - Bold Red */}
+      {/* STAGE 3: Propulsion - Glowing Plasma Engine */}
       {stage >= 3 && (
         <group position={[0, -1, 0]}>
             <mesh position={[0, -1, 0]} rotation={[Math.PI, 0, 0]}>
-                <coneGeometry args={[0.6, 1.2, 32]} />
-                <meshStandardMaterial color="#dc2626" emissive="#dc2626" emissiveIntensity={0.3} />
+                <coneGeometry args={[0.8, 1.4, 32]} />
+                <meshStandardMaterial 
+                    color="#ef4444" 
+                    emissive="#f87171" 
+                    emissiveIntensity={2.0} 
+                    toneMapped={false}
+                />
             </mesh>
+            <pointLight position={[0, -1.5, 0]} color="#ef4444" intensity={5} distance={5} />
         </group>
       )}
 
-      {/* STAGE 4: Solar Panels - Deep Blue Solar */}
+      {/* STAGE 4: Solar Panels - Photovoltaic Glass */}
       {stage >= 4 && (
         <group>
              <mesh position={[1.1, 1, 0]} rotation={[0,0, stage >= 5 ? -Math.PI/2 : -0.2]}>
                 <boxGeometry args={[0.2, 4, 1.5]} />
-                <meshStandardMaterial color="#172554" metalness={0.5} roughness={0.1} />
+                <meshStandardMaterial 
+                    color="#1e40af" 
+                    metalness={0.9} 
+                    roughness={0.0} 
+                    emissive="#172554"
+                    emissiveIntensity={0.2}
+                />
              </mesh>
              <mesh position={[-1.1, 1, 0]} rotation={[0,0, stage >= 5 ? Math.PI/2 : 0.2]}>
                 <boxGeometry args={[0.2, 4, 1.5]} />
-                <meshStandardMaterial color="#172554" metalness={0.5} roughness={0.1} />
+                <meshStandardMaterial 
+                    color="#1e40af" 
+                    metalness={0.9} 
+                    roughness={0.0} 
+                    emissive="#172554"
+                    emissiveIntensity={0.2}
+                />
              </mesh>
         </group>
       )}
 
-      {/* STAGE 5: Thermal Shielding - Gold Foil */}
+      {/* STAGE 5: Thermal Shielding - High Gloss Gold Foil */}
       {stage >= 5 && (
         <group>
            <mesh position={[0, 1, 0]} castShadow>
               <boxGeometry args={[2.2, 4.2, 2.2]} />
-              <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.1} envMapIntensity={2.5} />
+              <meshStandardMaterial 
+                color="#fbbf24" 
+                metalness={1.0} 
+                roughness={0.05} 
+                envMapIntensity={4.0} 
+                normalScale={new THREE.Vector2(0.2, 0.2)}
+              />
            </mesh>
         </group>
       )}
@@ -639,12 +686,66 @@ const ProductionLine: React.FC<{ lineState: LineState, position: [number, number
   );
 };
 
+const CameraRig: React.FC<{ factory: FactoryState, controlsRef: React.RefObject<any> }> = ({ factory, controlsRef }) => {
+  const { camera } = useThree();
+  
+  // Track the visual position of the satellite
+  const currentX = useRef(-120 * 27); 
+
+  useFrame((state, delta) => {
+    // We track Line 1 (Center Line, index 1)
+    const line = factory.lines[1]; 
+    
+    // Map 0..100 -> -120..120 local -> * 27 world
+    const logicalLocalX = (line.conveyorPos * 2.0) - 120;
+    const logicalWorldX = logicalLocalX * 27;
+
+    // Smoothly interpolate currentX towards logicalWorldX to create a cinematic follow effect
+    // slightly slower than the object movement (3.0) to feel like a camera operator
+    currentX.current = THREE.MathUtils.lerp(currentX.current, logicalWorldX, delta * 2.5);
+
+    if (controlsRef.current) {
+        // If conveyor is at start (0), use a Wide Shot
+        if (line.conveyorPos === 0) {
+            const wideTarget = new THREE.Vector3(0, 0, 0);
+            const widePos = new THREE.Vector3(0, 3500, 6000);
+            
+            controlsRef.current.target.lerp(wideTarget, delta * 2);
+            camera.position.lerp(widePos, delta * 2);
+        } else {
+            // Follow Shot: Tracking the satellite
+            // Target: The Satellite (at currentX) + slight Y offset
+            const focusTarget = new THREE.Vector3(currentX.current, 200, 0);
+            
+            // 30 Degree Elevation Calculation:
+            // Desired Angle = 30 deg
+            // Vertical Offset (Y) from target = 1000
+            // Horizontal Distance (Z) = 1000 / tan(30) ≈ 1732
+            // Camera Y = TargetY (200) + 1000 = 1200
+            // Camera Z = TargetZ (0) + 1732 = 1732
+            // Rounded to 1732 for simplicity
+            
+            const focusPos = new THREE.Vector3(currentX.current, 1200, 1732);
+
+            controlsRef.current.target.lerp(focusTarget, delta * 2);
+            camera.position.lerp(focusPos, delta * 2);
+        }
+        
+        controlsRef.current.update();
+    }
+  });
+
+  return null;
+}
 
 const FactoryScene: React.FC<FactorySceneProps> = ({ factory }) => {
+  const controlsRef = useRef<any>(null);
+
   return (
     <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden shadow-2xl border border-gray-700">
       {/* Camera adapted for Scale 20 */}
       <Canvas shadows camera={{ position: [0, 3500, 6000], fov: 60, far: 20000 }}>
+        <CameraRig factory={factory} controlsRef={controlsRef} />
         {/* Fog matched to new scale */}
         <fog attach="fog" args={['#0f172a', 3000, 12000]} />
         
@@ -685,7 +786,7 @@ const FactoryScene: React.FC<FactorySceneProps> = ({ factory }) => {
           </group>
 
         </Suspense>
-        <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} target={[0, 0, 0]} maxDistance={10000} />
+        <OrbitControls ref={controlsRef} makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} target={[0, 0, 0]} maxDistance={10000} />
       </Canvas>
     </div>
   );

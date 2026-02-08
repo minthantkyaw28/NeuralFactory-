@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Square, RefreshCw, Cpu, MessageSquare, Terminal, AlertCircle, Satellite, Factory } from 'lucide-react';
+import { Play, Square, RefreshCw, Cpu, MessageSquare, Terminal, AlertCircle, Satellite, Factory, PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import FactoryScene from './components/World/FactoryScene';
 import CodeEditor from './components/UI/CodeEditor';
 import { generatePLCCode } from './services/geminiService';
@@ -15,6 +15,10 @@ const App: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   
+  // Layout State
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isLogOpen, setIsLogOpen] = useState<boolean>(true);
+
   // Refs
   const codeLinesRef = useRef<string[]>([]);
   const currentLineRef = useRef<number>(-1);
@@ -91,9 +95,6 @@ const App: React.FC = () => {
             return { ...prev, stations: newStations, satelliteStage: newStage };
           });
 
-          // Turn off station after duration (handled by separate timeout in effect or just toggle here for simplicity? 
-          // For simplicity, we just set working, then a subsequent logic could set idle, but for this viz, 
-          // we'll just leave it 'WORKING' for the duration of the step, then 'DONE' implicitly by next moves)
           setTimeout(() => {
              setFactory(prev => {
                  const newStations = [...prev.stations];
@@ -195,16 +196,25 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-white overflow-hidden font-sans">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-gray-900 border-b border-gray-800 shadow-lg">
-        <div className="flex items-center gap-3">
-          <Factory className="w-8 h-8 text-blue-500" />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">OrbitSim <span className="text-blue-500">Ultimate</span></h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Advanced Manufacturing Simulation</p>
+      <header className="flex items-center justify-between px-6 py-4 bg-gray-900 border-b border-gray-800 shadow-lg shrink-0 z-20">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="text-gray-400 hover:text-white transition-colors"
+            title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+          >
+            {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+          </button>
+          <div className="flex items-center gap-3">
+            <Factory className="w-8 h-8 text-blue-500" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">OrbitSim <span className="text-blue-500">Ultimate</span></h1>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Advanced Manufacturing Simulation</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-6">
-            <div className="flex gap-4 text-xs font-mono text-gray-400">
+            <div className="hidden md:flex gap-4 text-xs font-mono text-gray-400">
                 <div className="flex flex-col items-center">
                     <span className="text-gray-600">THROUGHPUT</span>
                     <span className="text-green-400">1 UNIT/HR</span>
@@ -227,47 +237,47 @@ const App: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         
         {/* LEFT PANEL */}
-        <div className="w-[400px] flex flex-col border-r border-gray-800 bg-gray-900/50 backdrop-blur-sm z-10">
-          
-          {/* AI Input */}
-          <div className="p-4 border-b border-gray-800">
-             <div className="flex items-center justify-between text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-               <div className="flex items-center gap-2"><Cpu className="w-3 h-3"/> Pipeline Controller</div>
-               {process.env.API_KEY ? <span className="text-green-500">AI ACTIVE</span> : <span className="text-red-500">OFFLINE</span>}
-             </div>
-             <div className="relative">
-                <textarea 
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAiGenerate())}
-                    placeholder="Describe production sequence (e.g. 'Build a satellite with extra QA testing')" 
-                    className="w-full h-24 bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-none placeholder-gray-600 transition-all"
-                />
-                <button 
-                    onClick={handleAiGenerate}
-                    disabled={isAiLoading || !process.env.API_KEY}
-                    className="absolute bottom-3 right-3 bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded-md transition-colors disabled:opacity-50"
-                >
-                    <MessageSquare className="w-4 h-4" />
-                </button>
-             </div>
-          </div>
-
-          {/* Editor */}
-          <div className="flex-1 flex flex-col min-h-0 bg-gray-950">
-            <div className="px-4 py-2 bg-gray-900 border-b border-gray-800 flex justify-between items-center text-[10px] text-gray-500 uppercase font-mono">
-              <span>main_sequence.plc</span>
-              <span>L{code.split('\n').length}</span>
+        <div className={`${isSidebarOpen ? 'w-[400px] border-r' : 'w-0 border-r-0'} flex flex-col border-gray-800 bg-gray-900/50 backdrop-blur-sm z-10 transition-all duration-300 ease-in-out overflow-hidden`}>
+          <div className="w-[400px] flex flex-col h-full">
+            {/* AI Input */}
+            <div className="p-4 border-b border-gray-800">
+               <div className="flex items-center justify-between text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                 <div className="flex items-center gap-2"><Cpu className="w-3 h-3"/> Pipeline Controller</div>
+                 {process.env.API_KEY ? <span className="text-green-500">AI ACTIVE</span> : <span className="text-red-500">OFFLINE</span>}
+               </div>
+               <div className="relative">
+                  <textarea 
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAiGenerate())}
+                      placeholder="Describe production sequence (e.g. 'Build a satellite with extra QA testing')" 
+                      className="w-full h-24 bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-none placeholder-gray-600 transition-all"
+                  />
+                  <button 
+                      onClick={handleAiGenerate}
+                      disabled={isAiLoading || !process.env.API_KEY}
+                      className="absolute bottom-3 right-3 bg-blue-600 hover:bg-blue-500 text-white p-1.5 rounded-md transition-colors disabled:opacity-50"
+                  >
+                      <MessageSquare className="w-4 h-4" />
+                  </button>
+               </div>
             </div>
-            <div className="flex-1 relative">
-              <CodeEditor code={code} setCode={setCode} currentLine={currentLine} readOnly={status === SimulationState.RUNNING} />
+
+            {/* Editor */}
+            <div className="flex-1 flex flex-col min-h-0 bg-gray-950">
+              <div className="px-4 py-2 bg-gray-900 border-b border-gray-800 flex justify-between items-center text-[10px] text-gray-500 uppercase font-mono">
+                <span>main_sequence.plc</span>
+                <span>L{code.split('\n').length}</span>
+              </div>
+              <div className="flex-1 relative">
+                <CodeEditor code={code} setCode={setCode} currentLine={currentLine} readOnly={status === SimulationState.RUNNING} />
+              </div>
             </div>
           </div>
-
         </div>
 
         {/* RIGHT PANEL (SCENE) */}
-        <div className="flex-1 flex flex-col relative bg-gray-950">
+        <div className="flex-1 flex flex-col relative bg-gray-950 min-w-0">
           
           {/* Overlay Stats */}
           <div className="absolute top-6 left-6 z-10 flex gap-2">
@@ -288,11 +298,19 @@ const App: React.FC = () => {
           </div>
 
           {/* Bottom Logs */}
-          <div className="h-40 border-t border-gray-800 bg-gray-900/80 backdrop-blur flex flex-col">
-             <div className="px-4 py-2 border-b border-gray-800 text-[10px] uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                <Terminal className="w-3 h-3" /> Production Log
+          <div className={`${isLogOpen ? 'h-52' : 'h-10'} border-t border-gray-800 bg-gray-900/80 backdrop-blur flex flex-col transition-all duration-300 ease-in-out shrink-0`}>
+             <div 
+                className="px-4 py-2 border-b border-gray-800 text-[10px] uppercase tracking-widest text-gray-500 flex items-center justify-between cursor-pointer hover:bg-gray-800/50 transition-colors"
+                onClick={() => setIsLogOpen(!isLogOpen)}
+             >
+                <div className="flex items-center gap-2">
+                    <Terminal className="w-3 h-3" /> Production Log
+                </div>
+                {isLogOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
              </div>
-             <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1.5">
+             
+             {/* Log Content - Only visible if has height, overflow handles hiding */}
+             <div className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                 {logs.map((log, i) => (
                     <div key={i} className="text-gray-400 border-l-2 border-gray-700 pl-3">
                         <span className="text-gray-600 mr-2">{log.substring(1, 10)}</span>
